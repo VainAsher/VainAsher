@@ -238,11 +238,63 @@ class Player:
 
     def check_collisions(self, tilemap):
         """Check collisions with tilemap"""
-        # Placeholder - will be implemented with tilemap
-        # For now, assume we're on ground if y > 400
-        was_on_ground = self.on_ground
-        self.on_ground = self.pos.y >= 400
+        if not tilemap:
+            return
 
+        # Skip collision if phasing (shadow dash)
+        if self.movement.phasing:
+            self.on_ground = False
+            self.on_wall = False
+            return
+
+        was_on_ground = self.on_ground
+        was_on_wall = self.on_wall
+
+        # Reset states
+        self.on_ground = False
+        self.on_wall = False
+        self.wall_direction = 0
+
+        # Get collision rects near player
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
+
+        # Horizontal collision
+        self.hitbox.x = int(self.pos.x - self.hitbox.width // 2)
+        for tile_rect in collision_rects:
+            if self.hitbox.colliderect(tile_rect):
+                # Moving right
+                if self.velocity.x > 0:
+                    self.hitbox.right = tile_rect.left
+                    self.pos.x = self.hitbox.centerx
+                    self.velocity.x = 0
+                    self.on_wall = True
+                    self.wall_direction = 1
+                # Moving left
+                elif self.velocity.x < 0:
+                    self.hitbox.left = tile_rect.right
+                    self.pos.x = self.hitbox.centerx
+                    self.velocity.x = 0
+                    self.on_wall = True
+                    self.wall_direction = -1
+
+        # Vertical collision
+        self.hitbox.y = int(self.pos.y - self.hitbox.height // 2)
+        for tile_rect in collision_rects:
+            if self.hitbox.colliderect(tile_rect):
+                # Moving down (landing)
+                if self.velocity.y > 0:
+                    self.hitbox.bottom = tile_rect.top
+                    self.pos.y = self.hitbox.centery
+                    self.velocity.y = 0
+                    self.on_ground = True
+                    self.on_wall = False  # On ground takes priority
+                # Moving up (hitting ceiling)
+                elif self.velocity.y < 0:
+                    self.hitbox.top = tile_rect.bottom
+                    self.pos.y = self.hitbox.centery
+                    self.velocity.y = 0
+
+        # Trigger landing/leaving events
         if not was_on_ground and self.on_ground:
             self.movement.on_landed()
             if self.movement.is_down_smashing:

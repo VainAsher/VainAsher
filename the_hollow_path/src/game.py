@@ -62,10 +62,13 @@ class Game:
         # Could show intro cutscene here
 
     def spawn_test_enemies(self):
-        """Spawn test enemies"""
-        self.enemies.append(Enemy(800, 400, "shadow_self"))
-        self.enemies.append(Enemy(1000, 400, "shadow_self"))
-        self.enemies.append(Enemy(600, 400, "gatekeeper"))
+        """Spawn test enemies on platforms"""
+        # Spawn on starting platform area
+        self.enemies.append(Enemy(800, 380, "shadow_self"))
+        # Spawn on left floating platform
+        self.enemies.append(Enemy(450, 300, "shadow_self"))
+        # Spawn on ground
+        self.enemies.append(Enemy(1100, 450, "gatekeeper"))
 
     def run(self):
         """Main game loop"""

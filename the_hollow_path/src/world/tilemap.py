@@ -106,23 +106,35 @@ def create_test_level() -> Tilemap:
     """Create a simple test level"""
     tilemap = Tilemap(100, 50)
 
-    # Ground
+    # Ground (y=15 means pixel y = 15*32 = 480)
     for x in range(100):
         tilemap.set_tile(x, 15, "platform")
 
-    # Platforms
+    # Starting platform (player starts at 640, 400)
+    # Tile x = 640/32 = 20, y = 400/32 = 12.5, so put platform at y=13
+    for x in range(15, 25):
+        tilemap.set_tile(x, 13, "platform")
+
+    # Floating platforms
     for x in range(10, 20):
-        tilemap.set_tile(x, 12, "platform")
+        tilemap.set_tile(x, 11, "platform")
 
-    for x in range(25, 35):
-        tilemap.set_tile(x, 10, "platform")
+    for x in range(30, 40):
+        tilemap.set_tile(x, 11, "platform")
 
-    for x in range(40, 50):
-        tilemap.set_tile(x, 8, "platform")
+    for x in range(45, 55):
+        tilemap.set_tile(x, 9, "platform")
 
-    # Walls
-    for y in range(10, 16):
+    for x in range(60, 70):
+        tilemap.set_tile(x, 7, "platform")
+
+    # Walls to create boundaries
+    for y in range(5, 16):
         tilemap.set_tile(0, y, "wall")
         tilemap.set_tile(99, y, "wall")
+
+    # Some obstacles
+    for x in range(5, 8):
+        tilemap.set_tile(x, 14, "wall")
 
     return tilemap

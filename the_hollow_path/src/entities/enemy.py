@@ -80,7 +80,7 @@ class Enemy:
         self.animation.update(dt)
 
         # Apply physics
-        self.apply_physics(dt)
+        self.apply_physics(dt, tilemap)
 
         # Update hitbox
         self.hitbox.center = (int(self.pos.x), int(self.pos.y))
@@ -94,7 +94,7 @@ class Enemy:
         if self.damage_flash_timer > 0:
             self.damage_flash_timer -= dt
 
-    def apply_physics(self, dt: float):
+    def apply_physics(self, dt: float, tilemap=None):
         """Apply gravity and friction"""
         # Gravity
         if not self.on_ground:
@@ -111,13 +111,55 @@ class Enemy:
         # Update position
         self.pos += self.velocity
 
-        # Simple ground check (placeholder)
-        if self.pos.y >= 400:
-            self.on_ground = True
-            self.pos.y = 400
-            self.velocity.y = 0
+        # Check collisions with tilemap
+        if tilemap:
+            self.check_collisions(tilemap)
         else:
-            self.on_ground = False
+            # Fallback ground check
+            if self.pos.y >= 400:
+                self.on_ground = True
+                self.pos.y = 400
+                self.velocity.y = 0
+            else:
+                self.on_ground = False
+
+    def check_collisions(self, tilemap):
+        """Check collisions with tilemap"""
+        self.on_ground = False
+
+        # Get collision rects near enemy
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
+
+        # Horizontal collision
+        self.hitbox.x = int(self.pos.x - self.hitbox.width // 2)
+        for tile_rect in collision_rects:
+            if self.hitbox.colliderect(tile_rect):
+                # Moving right
+                if self.velocity.x > 0:
+                    self.hitbox.right = tile_rect.left
+                    self.pos.x = self.hitbox.centerx
+                    self.velocity.x = 0
+                # Moving left
+                elif self.velocity.x < 0:
+                    self.hitbox.left = tile_rect.right
+                    self.pos.x = self.hitbox.centerx
+                    self.velocity.x = 0
+
+        # Vertical collision
+        self.hitbox.y = int(self.pos.y - self.hitbox.height // 2)
+        for tile_rect in collision_rects:
+            if self.hitbox.colliderect(tile_rect):
+                # Moving down (landing)
+                if self.velocity.y > 0:
+                    self.hitbox.bottom = tile_rect.top
+                    self.pos.y = self.hitbox.centery
+                    self.velocity.y = 0
+                    self.on_ground = True
+                # Moving up (hitting ceiling)
+                elif self.velocity.y < 0:
+                    self.hitbox.top = tile_rect.bottom
+                    self.pos.y = self.hitbox.centery
+                    self.velocity.y = 0
 
     def take_damage(self, amount: float, knockback=None):
         """Take damage from player"""
