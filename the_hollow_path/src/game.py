@@ -9,7 +9,12 @@ from src.entities.enemy import Enemy
 from src.entities.companion import Companion
 from src.world.tilemap import create_test_level
 from src.systems.camera import Camera
+from src.systems.audio import AudioManager
 from src.ui.hud import HUD
+from src.ui.death_screen import DeathScreen
+from src.ui.pause_menu import PauseMenu
+from src.ui.help_screen import HelpScreen
+from src.ui.options_menu import OptionsMenu
 from src.utils.debug import debug
 from src.utils.save_system import SaveSystem
 from src.components.combat import Projectile
@@ -25,17 +30,28 @@ class Game:
         self.clock = pygame.time.Clock()
 
         # Game state
-        self.state = "playing"  # playing, paused, dead, cutscene
+        self.state = "playing"  # playing, paused, dead, help, options
 
         # Systems
         self.camera = Camera()
         self.hud = HUD()
+        self.audio_manager = AudioManager()
+
+        # UI Menus
+        self.death_screen = DeathScreen(screen)
+        self.pause_menu = PauseMenu(screen)
+        self.help_screen = HelpScreen(screen)
+        self.options_menu = OptionsMenu(screen, self.audio_manager)
+
+        # Statistics
+        self.deaths = 0
 
         # World
         self.tilemap = create_test_level()
 
         # Entities
-        self.player = Player(640, 400)
+        # Spawn player at start of test level (x=10 tiles * 32 = 320px, y=18 tiles * 32 = 576px)
+        self.player = Player(320, 550)
         self.camera.set_target(self.player)
         self.enemies = []
         self.projectiles = []
@@ -62,13 +78,20 @@ class Game:
         # Could show intro cutscene here
 
     def spawn_test_enemies(self):
-        """Spawn test enemies on platforms"""
-        # Spawn on starting platform area
-        self.enemies.append(Enemy(800, 380, "shadow_self"))
-        # Spawn on left floating platform
-        self.enemies.append(Enemy(450, 300, "shadow_self"))
-        # Spawn on ground
-        self.enemies.append(Enemy(1100, 450, "gatekeeper"))
+        """Spawn test enemies in different test sections"""
+        # Section 1: Starting area - Shadow Self
+        self.enemies.append(Enemy(400, 550, "shadow_self"))
+
+        # Section 3: Wall climb area - Gatekeeper
+        self.enemies.append(Enemy(1750, 280, "gatekeeper"))
+
+        # Section 4: Dash course - Echo
+        self.enemies.append(Enemy(2250, 550, "echo"))
+
+        # Section 9: Combat arena - Multiple enemies
+        self.enemies.append(Enemy(4500, 620, "shadow_self"))
+        self.enemies.append(Enemy(4600, 620, "shadow_self"))
+        self.enemies.append(Enemy(4550, 620, "gatekeeper"))
 
     def run(self):
         """Main game loop"""
@@ -190,6 +213,10 @@ class Game:
         # Check combat collisions
         self.check_combat_collisions()
 
+        # Check for player death
+        if self.player.state == "dead":
+            self.handle_player_death()
+
         # God mode
         if debug.godmode:
             self.player.invulnerable = True
@@ -224,13 +251,58 @@ class Game:
                     knockback = knockback_dir * 5
                     self.player.take_damage(enemy.damage, knockback)
 
-    def toggle_pause(self):
-        """Toggle pause state"""
-        self.paused = not self.paused
-        if self.paused:
-            self.state = "paused"
-        else:
+    def handle_player_death(self):
+        """Handle player death - show death screen and handle restart"""
+        self.deaths += 1
+        self.state = "dead"
+
+        # Show death screen
+        choice = self.death_screen.run(self.deaths)
+
+        if choice == "restart":
+            # Respawn player at starting position
+            self.player.pos = pygame.Vector2(320, 550)
+            self.player.velocity = pygame.Vector2(0, 0)
+            self.player.will = self.player.max_will
+            self.player.strength = self.player.max_strength
+            self.player.state = "idle"
+            self.player.invulnerable = False
+
+            # Respawn enemies
+            self.enemies.clear()
+            self.spawn_test_enemies()
+
+            # Resume game
             self.state = "playing"
+        elif choice == "quit":
+            # Return to main menu
+            self.running = False
+
+    def toggle_pause(self):
+        """Toggle pause state and show pause menu"""
+        if self.state != "playing":
+            return
+
+        self.paused = True
+        self.state = "paused"
+
+        # Show pause menu
+        choice = self.pause_menu.run()
+
+        if choice == "resume":
+            self.paused = False
+            self.state = "playing"
+        elif choice == "controls":
+            self.help_screen.run()
+            # Return to pause menu
+            self.toggle_pause()
+        elif choice == "options":
+            self.options_menu.run()
+            # Return to pause menu
+            self.toggle_pause()
+        elif choice == "quit":
+            # Return to main menu
+            self.running = False
 
     def debug_unlock_all_abilities(self):
         """Debug: Unlock all abilities"""
@@ -309,28 +381,4 @@ class Game:
                 draw_rect.y -= camera_offset[1]
                 pygame.draw.rect(self.screen, (255, 0, 0), draw_rect, 2)
 
-        # Pause overlay
-        if self.paused:
-            self.render_pause_overlay()
-
         pygame.display.flip()
-
-    def render_pause_overlay(self):
-        """Render pause menu overlay"""
-        # Semi-transparent overlay
-        overlay = pygame.Surface((settings.SCREEN_WIDTH, settings.SCREEN_HEIGHT))
-        overlay.set_alpha(128)
-        overlay.fill((0, 0, 0))
-        self.screen.blit(overlay, (0, 0))
-
-        # Pause text
-        font = pygame.font.Font(None, 72)
-        text = font.render("PAUSED", True, (255, 255, 255))
-        rect = text.get_rect(center=(settings.SCREEN_WIDTH // 2, settings.SCREEN_HEIGHT // 2))
-        self.screen.blit(text, rect)
-
-        # Instructions
-        small_font = pygame.font.Font(None, 36)
-        text2 = small_font.render("Press ESC to resume", True, (200, 200, 200))
-        rect2 = text2.get_rect(center=(settings.SCREEN_WIDTH // 2, settings.SCREEN_HEIGHT // 2 + 60))
-        self.screen.blit(text2, rect2)

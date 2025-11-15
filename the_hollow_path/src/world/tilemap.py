@@ -103,38 +103,138 @@ class Tilemap:
 
 
 def create_test_level() -> Tilemap:
-    """Create a simple test level"""
-    tilemap = Tilemap(100, 50)
+    """
+    Create a comprehensive test level showcasing all abilities and mechanics.
 
-    # Ground (y=15 means pixel y = 15*32 = 480)
-    for x in range(100):
-        tilemap.set_tile(x, 15, "platform")
+    Layout (left to right):
+    - Spawn area
+    - Jump/Double Jump challenge
+    - Wall Climb section
+    - Dash obstacle course
+    - Shadow Dash phase test
+    - Grapple hook area
+    - Down Smash section
+    - Crouch tunnel
+    - Combat arena
+    - Save point area
+    """
+    tilemap = Tilemap(150, 30)
 
-    # Starting platform (player starts at 640, 400)
-    # Tile x = 640/32 = 20, y = 400/32 = 12.5, so put platform at y=13
-    for x in range(15, 25):
-        tilemap.set_tile(x, 13, "platform")
+    # === GROUND LAYER (y=22) ===
+    for x in range(150):
+        tilemap.set_tile(x, 22, "platform")
 
-    # Floating platforms
-    for x in range(10, 20):
+    # === BOUNDARY WALLS ===
+    for y in range(0, 23):
+        tilemap.set_tile(0, y, "wall")
+        tilemap.set_tile(149, y, "wall")
+
+    # === SECTION 1: SPAWN & BASIC JUMP (x: 5-20) ===
+    # Starting platform (player spawns at 640, 400 = tile 20, 12.5)
+    for x in range(5, 15):
+        tilemap.set_tile(x, 18, "platform")
+
+    # Jump test platforms
+    for x in range(18, 23):
+        tilemap.set_tile(x, 16, "platform")
+
+    for x in range(26, 31):
+        tilemap.set_tile(x, 14, "platform")
+
+    # === SECTION 2: DOUBLE JUMP TEST (x: 32-45) ===
+    # High platform requiring double jump
+    for x in range(35, 40):
         tilemap.set_tile(x, 11, "platform")
 
-    for x in range(30, 40):
-        tilemap.set_tile(x, 11, "platform")
+    # Very high platform (definitely needs double jump)
+    for x in range(42, 47):
+        tilemap.set_tile(x, 8, "platform")
 
-    for x in range(45, 55):
+    # === SECTION 3: WALL CLIMB (x: 48-60) ===
+    # Tall wall
+    for y in range(10, 22):
+        tilemap.set_tile(50, y, "wall")
+        tilemap.set_tile(51, y, "wall")
+
+    # Platform at top of wall
+    for x in range(52, 58):
         tilemap.set_tile(x, 9, "platform")
 
-    for x in range(60, 70):
-        tilemap.set_tile(x, 7, "platform")
+    # Wall jump practice (narrow shaft)
+    for y in range(12, 22):
+        tilemap.set_tile(60, y, "wall")
+        tilemap.set_tile(64, y, "wall")
 
-    # Walls to create boundaries
-    for y in range(5, 16):
-        tilemap.set_tile(0, y, "wall")
-        tilemap.set_tile(99, y, "wall")
+    # === SECTION 4: DASH COURSE (x: 66-80) ===
+    # Gap requiring dash to cross
+    for x in range(66, 70):
+        tilemap.set_tile(x, 18, "platform")
+    # Gap of 5 tiles
+    for x in range(75, 80):
+        tilemap.set_tile(x, 18, "platform")
 
-    # Some obstacles
-    for x in range(5, 8):
-        tilemap.set_tile(x, 14, "wall")
+    # Spike pit (visual indicator for gap)
+    for x in range(70, 75):
+        tilemap.set_tile(x, 21, "spike")
+
+    # === SECTION 5: SHADOW DASH / PHASE (x: 82-95) ===
+    # Solid barrier that blocks normal movement
+    for y in range(15, 23):
+        tilemap.set_tile(87, y, "wall")
+        tilemap.set_tile(88, y, "wall")
+        tilemap.set_tile(89, y, "wall")
+
+    # Platforms on both sides
+    for x in range(82, 87):
+        tilemap.set_tile(x, 18, "platform")
+
+    for x in range(90, 95):
+        tilemap.set_tile(x, 18, "platform")
+
+    # === SECTION 6: GRAPPLE POINTS (x: 96-110) ===
+    # Platform with gap
+    for x in range(96, 100):
+        tilemap.set_tile(x, 18, "platform")
+
+    # Grapple anchor point (single block high up)
+    tilemap.set_tile(105, 10, "platform")
+
+    # Landing platform
+    for x in range(108, 113):
+        tilemap.set_tile(x, 18, "platform")
+
+    # === SECTION 7: DOWN SMASH TEST (x: 114-125) ===
+    # High platform
+    for x in range(114, 119):
+        tilemap.set_tile(x, 10, "platform")
+
+    # Breakable blocks below (visual indicator)
+    for x in range(115, 118):
+        tilemap.set_tile(x, 20, "platform")
+
+    # Landing area
+    for x in range(114, 125):
+        tilemap.set_tile(x, 21, "platform")
+
+    # === SECTION 8: CROUCH TUNNEL (x: 126-138) ===
+    # Low ceiling tunnel
+    for x in range(126, 138):
+        tilemap.set_tile(x, 18, "platform")  # Floor
+        tilemap.set_tile(x, 16, "wall")       # Low ceiling (2 tiles high)
+
+    # === SECTION 9: COMBAT ARENA (x: 139-148) ===
+    # Large open arena
+    for x in range(139, 148):
+        tilemap.set_tile(x, 20, "platform")
+
+    # Some cover obstacles
+    for y in range(18, 20):
+        tilemap.set_tile(142, y, "wall")
+        tilemap.set_tile(145, y, "wall")
+
+    # === SAVE POINT MARKERS ===
+    tilemap.set_tile(10, 17, "save_point")
+    tilemap.set_tile(70, 17, "save_point")
+    tilemap.set_tile(140, 19, "save_point")
 
     return tilemap
