@@ -14,7 +14,8 @@ class Tile:
         self.tile_type = tile_type
         self.x = x
         self.y = y
-        self.solid = tile_type in ["platform", "wall"]
+        self.solid = tile_type in ["platform", "wall", "shadow_wall"]
+        self.phaseable = tile_type == "shadow_wall"  # Can pass through when phasing
         self.rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 
     def get_color(self):
@@ -24,7 +25,11 @@ class Tile:
             "wall": (80, 80, 80),
             "background": (40, 40, 50),
             "spike": (200, 50, 50),
-            "save_point": (100, 255, 100)
+            "save_point": (100, 255, 100),
+            "grapple_point": (255, 255, 100),  # Yellow for grapple
+            "ability_pickup": (255, 200, 100),  # Orange for abilities
+            "consumable": (150, 200, 255),  # Light blue for consumables
+            "shadow_wall": (60, 30, 80),  # Purple for shadow dash barriers
         }
         return colors.get(self.tile_type, (255, 0, 255))
 
@@ -141,6 +146,11 @@ def create_test_level() -> Tilemap:
     for x in range(26, 31):
         tilemap.set_tile(x, 14, "platform")
 
+    # Consumables for testing
+    tilemap.set_tile(8, 17, "consumable")
+    tilemap.set_tile(20, 15, "consumable")
+    tilemap.set_tile(28, 13, "consumable")
+
     # === SECTION 2: DOUBLE JUMP TEST (x: 32-45) ===
     # High platform requiring double jump
     for x in range(35, 40):
@@ -149,6 +159,11 @@ def create_test_level() -> Tilemap:
     # Very high platform (definitely needs double jump)
     for x in range(42, 47):
         tilemap.set_tile(x, 8, "platform")
+
+    # Ability pickup for double jump
+    tilemap.set_tile(37, 10, "ability_pickup")
+    # Consumables
+    tilemap.set_tile(44, 7, "consumable")
 
     # === SECTION 3: WALL CLIMB (x: 48-60) ===
     # Tall wall
@@ -165,6 +180,11 @@ def create_test_level() -> Tilemap:
         tilemap.set_tile(60, y, "wall")
         tilemap.set_tile(64, y, "wall")
 
+    # Ability pickup for wall climb
+    tilemap.set_tile(55, 8, "ability_pickup")
+    # Consumables
+    tilemap.set_tile(62, 18, "consumable")
+
     # === SECTION 4: DASH COURSE (x: 66-80) ===
     # Gap requiring dash to cross
     for x in range(66, 70):
@@ -177,12 +197,17 @@ def create_test_level() -> Tilemap:
     for x in range(70, 75):
         tilemap.set_tile(x, 21, "spike")
 
+    # Ability pickup for dash
+    tilemap.set_tile(68, 17, "ability_pickup")
+    # Consumables
+    tilemap.set_tile(77, 17, "consumable")
+
     # === SECTION 5: SHADOW DASH / PHASE (x: 82-95) ===
-    # Solid barrier that blocks normal movement
+    # Shadow wall barrier (purple - can only pass when phasing)
     for y in range(15, 23):
-        tilemap.set_tile(87, y, "wall")
-        tilemap.set_tile(88, y, "wall")
-        tilemap.set_tile(89, y, "wall")
+        tilemap.set_tile(87, y, "shadow_wall")
+        tilemap.set_tile(88, y, "shadow_wall")
+        tilemap.set_tile(89, y, "shadow_wall")
 
     # Platforms on both sides
     for x in range(82, 87):
@@ -191,17 +216,29 @@ def create_test_level() -> Tilemap:
     for x in range(90, 95):
         tilemap.set_tile(x, 18, "platform")
 
+    # Ability pickup for shadow dash
+    tilemap.set_tile(92, 17, "ability_pickup")
+    # Consumable
+    tilemap.set_tile(84, 17, "consumable")
+
     # === SECTION 6: GRAPPLE POINTS (x: 96-110) ===
     # Platform with gap
     for x in range(96, 100):
         tilemap.set_tile(x, 18, "platform")
 
-    # Grapple anchor point (single block high up)
-    tilemap.set_tile(105, 10, "platform")
+    # Grapple anchor points (yellow - visible hooks)
+    tilemap.set_tile(103, 12, "grapple_point")
+    tilemap.set_tile(105, 10, "grapple_point")
+    tilemap.set_tile(107, 12, "grapple_point")
 
     # Landing platform
     for x in range(108, 113):
         tilemap.set_tile(x, 18, "platform")
+
+    # Ability pickup for grapple
+    tilemap.set_tile(110, 17, "ability_pickup")
+    # Consumable
+    tilemap.set_tile(98, 17, "consumable")
 
     # === SECTION 7: DOWN SMASH TEST (x: 114-125) ===
     # High platform
@@ -216,11 +253,20 @@ def create_test_level() -> Tilemap:
     for x in range(114, 125):
         tilemap.set_tile(x, 21, "platform")
 
+    # Ability pickup for down smash
+    tilemap.set_tile(116, 9, "ability_pickup")
+    # Consumable
+    tilemap.set_tile(120, 20, "consumable")
+
     # === SECTION 8: CROUCH TUNNEL (x: 126-138) ===
     # Low ceiling tunnel
     for x in range(126, 138):
         tilemap.set_tile(x, 18, "platform")  # Floor
         tilemap.set_tile(x, 16, "wall")       # Low ceiling (2 tiles high)
+
+    # Consumables in tunnel
+    tilemap.set_tile(130, 17, "consumable")
+    tilemap.set_tile(135, 17, "consumable")
 
     # === SECTION 9: COMBAT ARENA (x: 139-148) ===
     # Large open arena
@@ -231,6 +277,10 @@ def create_test_level() -> Tilemap:
     for y in range(18, 20):
         tilemap.set_tile(142, y, "wall")
         tilemap.set_tile(145, y, "wall")
+
+    # Consumables scattered in arena
+    tilemap.set_tile(140, 19, "consumable")
+    tilemap.set_tile(147, 19, "consumable")
 
     # === SAVE POINT MARKERS ===
     tilemap.set_tile(10, 17, "save_point")

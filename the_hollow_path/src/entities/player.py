@@ -114,7 +114,7 @@ class Player:
         self.animation.update(dt)
 
         # Handle input
-        self.handle_input(inputs)
+        self.handle_input(inputs, tilemap)
 
         # Apply physics
         self.apply_physics(dt)
@@ -139,7 +139,7 @@ class Player:
         else:
             self.invulnerable = False
 
-    def handle_input(self, inputs: dict):
+    def handle_input(self, inputs: dict, tilemap=None):
         """Process player inputs"""
         # Don't process input if dead
         if self.state == "dead":
@@ -154,10 +154,15 @@ class Player:
             move_x += 1
             self.facing_right = True
 
-        # Apply movement
-        if not self.movement.is_dashing and not self.movement.is_shadow_dashing:
-            speed_mult = CROUCH_SPEED_MULT if self.crouching else 1.0
-            self.velocity.x += move_x * ACCELERATION * speed_mult
+        # Apply movement with dash multiplier
+        speed_mult = CROUCH_SPEED_MULT if self.crouching else 1.0
+        dash_mult = self.movement.get_dash_speed_multiplier()
+
+        # During dash, force movement in dash direction
+        if self.movement.is_dashing or self.movement.is_shadow_dashing:
+            move_x = self.movement.dash_direction.x
+
+        self.velocity.x += move_x * ACCELERATION * speed_mult * dash_mult
 
         # Jump
         if inputs.get("jump_pressed"):
@@ -193,7 +198,7 @@ class Player:
         if inputs.get("grapple_pressed") and self.abilities["grapple"]:
             mouse_pos = inputs.get("mouse_pos", self.pos)
             target = pygame.Vector2(mouse_pos[0], mouse_pos[1])
-            self.movement.start_grapple(target)
+            self.movement.start_grapple(target, tilemap)
 
         # Attack
         if inputs.get("attack_pressed"):
@@ -245,13 +250,6 @@ class Player:
             self.pos += self.velocity
             return
 
-        # Skip collision if phasing (shadow dash)
-        if self.movement.phasing:
-            self.pos += self.velocity
-            self.on_ground = False
-            self.on_wall = False
-            return
-
         was_on_ground = self.on_ground
 
         # Reset states
@@ -265,19 +263,26 @@ class Player:
         self.hitbox.centerx = int(self.pos.x)
 
         # Check horizontal collisions
-        collision_rects = tilemap.get_collision_rects(self.hitbox)
-        for tile_rect in collision_rects:
-            if self.hitbox.colliderect(tile_rect):
+        tiles_in_area = tilemap.get_tiles_in_rect(self.hitbox)
+        for tile in tiles_in_area:
+            if not tile.solid:
+                continue
+
+            # Skip phaseable tiles if player is phasing
+            if tile.phaseable and self.movement.phasing:
+                continue
+
+            if self.hitbox.colliderect(tile.rect):
                 # Moving right - push out to the left
                 if self.velocity.x > 0:
-                    self.hitbox.right = tile_rect.left
+                    self.hitbox.right = tile.rect.left
                     self.pos.x = self.hitbox.centerx
                     self.velocity.x = 0
                     self.on_wall = True
                     self.wall_direction = 1
                 # Moving left - push out to the right
                 elif self.velocity.x < 0:
-                    self.hitbox.left = tile_rect.right
+                    self.hitbox.left = tile.rect.right
                     self.pos.x = self.hitbox.centerx
                     self.velocity.x = 0
                     self.on_wall = True
@@ -289,19 +294,26 @@ class Player:
         self.hitbox.centery = int(self.pos.y)
 
         # Check vertical collisions
-        collision_rects = tilemap.get_collision_rects(self.hitbox)
-        for tile_rect in collision_rects:
-            if self.hitbox.colliderect(tile_rect):
+        tiles_in_area = tilemap.get_tiles_in_rect(self.hitbox)
+        for tile in tiles_in_area:
+            if not tile.solid:
+                continue
+
+            # Skip phaseable tiles if player is phasing
+            if tile.phaseable and self.movement.phasing:
+                continue
+
+            if self.hitbox.colliderect(tile.rect):
                 # Moving down (landing on ground)
                 if self.velocity.y > 0:
-                    self.hitbox.bottom = tile_rect.top
+                    self.hitbox.bottom = tile.rect.top
                     self.pos.y = self.hitbox.centery
                     self.velocity.y = 0
                     self.on_ground = True
                     self.on_wall = False  # On ground takes priority over wall
                 # Moving up (hitting ceiling)
                 elif self.velocity.y < 0:
-                    self.hitbox.top = tile_rect.bottom
+                    self.hitbox.top = tile.rect.bottom
                     self.pos.y = self.hitbox.centery
                     self.velocity.y = 0
 
@@ -362,8 +374,21 @@ class Player:
             return
 
         item = self.consumables[slot]
-        # Apply item effects (placeholder)
-        print(f"Used: {item}")
+
+        # Apply item effects
+        if "Health" in item or "Potion" in item:
+            # Restore health
+            heal_amount = 20
+            self.will = min(self.max_will, self.will + heal_amount)
+            print(f"Used {item}: Restored {heal_amount} Will")
+        elif "Energy" in item or "Strength" in item:
+            # Restore energy
+            restore_amount = 30
+            self.strength = min(self.max_strength, self.strength + restore_amount)
+            print(f"Used {item}: Restored {restore_amount} Strength")
+
+        # Remove item from slot
+        self.consumables[slot] = None
 
     def take_damage(self, amount: float, knockback=None):
         """Take damage"""

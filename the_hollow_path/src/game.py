@@ -213,6 +213,9 @@ class Game:
         # Check combat collisions
         self.check_combat_collisions()
 
+        # Check for pickups
+        self.check_pickups()
+
         # Check for player death
         if self.player.state == "dead":
             self.handle_player_death()
@@ -251,6 +254,35 @@ class Game:
                     knockback = knockback_dir * 5
                     self.player.take_damage(enemy.damage, knockback)
 
+    def check_pickups(self):
+        """Check for player collecting pickups (consumables, abilities, etc.)"""
+        # Get tiles player is touching
+        tiles = self.tilemap.get_tiles_in_rect(self.player.hitbox)
+
+        for tile in tiles:
+            if tile.tile_type == "consumable":
+                # Add consumable to first empty slot
+                for i in range(1, 5):
+                    slot = f"slot_{i}"
+                    if not self.player.consumables[slot]:
+                        self.player.consumables[slot] = "Health Potion"
+                        print(f"Collected Health Potion (Slot {i})")
+                        # Remove tile
+                        self.tilemap.remove_tile(tile.x, tile.y)
+                        break
+
+            elif tile.tile_type == "ability_pickup":
+                # Unlock all abilities for testing (in real game, would unlock specific ones)
+                abilities_to_unlock = ["first_step", "wall_climb", "double_jump",
+                                      "dash", "shadow_dash", "grapple", "down_smash"]
+                for ability in abilities_to_unlock:
+                    if not self.player.abilities[ability]:
+                        self.player.unlock_ability(ability)
+                        print(f"Ability unlocked: {ability}")
+                        # Remove tile
+                        self.tilemap.remove_tile(tile.x, tile.y)
+                        return  # Only unlock one set per pickup
+
     def handle_player_death(self):
         """Handle player death - show death screen and handle restart"""
         self.deaths += 1
@@ -280,29 +312,31 @@ class Game:
 
     def toggle_pause(self):
         """Toggle pause state and show pause menu"""
-        if self.state != "playing":
+        if self.state == "dead":
             return
 
         self.paused = True
         self.state = "paused"
 
-        # Show pause menu
-        choice = self.pause_menu.run()
+        # Show pause menu - loop until we get resume or quit
+        while self.state == "paused":
+            choice = self.pause_menu.run()
 
-        if choice == "resume":
-            self.paused = False
-            self.state = "playing"
-        elif choice == "controls":
-            self.help_screen.run()
-            # Return to pause menu
-            self.toggle_pause()
-        elif choice == "options":
-            self.options_menu.run()
-            # Return to pause menu
-            self.toggle_pause()
-        elif choice == "quit":
-            # Return to main menu
-            self.running = False
+            if choice == "resume":
+                self.paused = False
+                self.state = "playing"
+                break
+            elif choice == "controls":
+                self.help_screen.run()
+                # Loop back to pause menu
+            elif choice == "options":
+                self.options_menu.run()
+                # Loop back to pause menu
+            elif choice == "quit":
+                # Return to main menu
+                self.running = False
+                self.state = "playing"  # Prevent further updates
+                break
 
     def debug_unlock_all_abilities(self):
         """Debug: Unlock all abilities"""

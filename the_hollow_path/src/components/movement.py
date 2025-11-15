@@ -114,7 +114,7 @@ class MovementComponent:
         self.jumps_remaining = self.max_jumps
 
     def start_dash(self, direction: pygame.Vector2):
-        """Start a dash"""
+        """Start a dash - provides speed boost"""
         if self.dash_cooldown_timer > 0:
             return
 
@@ -123,7 +123,8 @@ class MovementComponent:
         self.dash_cooldown_timer = DASH_COOLDOWN
         self.dash_direction = direction.normalize() if direction.length() > 0 else pygame.Vector2(1, 0)
 
-        self.entity.velocity = self.dash_direction * DASH_SPEED
+        # Store direction, don't set velocity directly
+        # Velocity will be modified in player movement handling
 
         # Invulnerability during dash
         if DASH_INVULNERABLE:
@@ -140,8 +141,16 @@ class MovementComponent:
         self.phasing = True
         self.dash_direction = direction.normalize() if direction.length() > 0 else pygame.Vector2(1, 0)
 
-        self.entity.velocity = self.dash_direction * SHADOW_DASH_SPEED
+        # Store direction, don't set velocity directly
         self.entity.invulnerable = True
+
+    def get_dash_speed_multiplier(self) -> float:
+        """Get current dash speed multiplier"""
+        if self.is_shadow_dashing:
+            return 3.0  # Shadow dash is faster
+        elif self.is_dashing:
+            return 2.5  # Regular dash
+        return 1.0  # Normal speed
 
     def start_down_smash(self):
         """Start a down smash attack while in air"""
@@ -152,18 +161,52 @@ class MovementComponent:
         self.entity.velocity.x = 0
         self.entity.velocity.y = DOWN_SMASH_FORCE
 
-    def start_grapple(self, target_point: pygame.Vector2):
+    def start_grapple(self, target_point: pygame.Vector2, tilemap=None):
         """Start grappling to a point"""
         if self.grapple_cooldown_timer > 0:
             return
 
-        distance = (target_point - self.entity.pos).length()
-        if distance > GRAPPLE_RANGE:
-            return
+        # If tilemap provided, find nearest grapple_point tile
+        if tilemap:
+            nearest_grapple = None
+            nearest_dist = GRAPPLE_RANGE
 
-        self.grapple_active = True
-        self.grapple_point = target_point
-        self.grapple_cooldown_timer = GRAPPLE_COOLDOWN
+            # Search area around target
+            search_rect = pygame.Rect(
+                target_point.x - GRAPPLE_RANGE,
+                target_point.y - GRAPPLE_RANGE,
+                GRAPPLE_RANGE * 2,
+                GRAPPLE_RANGE * 2
+            )
+
+            tiles = tilemap.get_tiles_in_rect(search_rect)
+            for tile in tiles:
+                if tile.tile_type == "grapple_point":
+                    tile_center = pygame.Vector2(
+                        tile.rect.centerx,
+                        tile.rect.centery
+                    )
+                    dist = (tile_center - self.entity.pos).length()
+                    if dist < nearest_dist:
+                        nearest_dist = dist
+                        nearest_grapple = tile_center
+
+            if nearest_grapple:
+                self.grapple_active = True
+                self.grapple_point = nearest_grapple
+                self.grapple_cooldown_timer = GRAPPLE_COOLDOWN
+                print(f"Grappling to point at {nearest_grapple}")
+            else:
+                print("No grapple point in range!")
+        else:
+            # Fallback: grapple to target directly
+            distance = (target_point - self.entity.pos).length()
+            if distance > GRAPPLE_RANGE:
+                return
+
+            self.grapple_active = True
+            self.grapple_point = target_point
+            self.grapple_cooldown_timer = GRAPPLE_COOLDOWN
 
     def update_grapple(self, dt: float):
         """Update grapple physics"""
