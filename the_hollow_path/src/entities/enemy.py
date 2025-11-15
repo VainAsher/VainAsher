@@ -108,14 +108,12 @@ class Enemy:
         else:
             self.velocity.x *= 0.95
 
-        # Update position
-        self.pos += self.velocity
-
-        # Check collisions with tilemap
+        # Check collisions with tilemap (handles position update)
         if tilemap:
             self.check_collisions(tilemap)
         else:
-            # Fallback ground check
+            # No tilemap - just apply velocity and do simple ground check
+            self.pos += self.velocity
             if self.pos.y >= 400:
                 self.on_ground = True
                 self.pos.y = 400
@@ -124,32 +122,42 @@ class Enemy:
                 self.on_ground = False
 
     def check_collisions(self, tilemap):
-        """Check collisions with tilemap"""
+        """
+        Check collisions with tilemap using axis-separated collision detection.
+        This prevents clipping by moving and checking each axis independently.
+        """
         self.on_ground = False
 
-        # Get collision rects near enemy
-        collision_rects = tilemap.get_collision_rects(self.hitbox)
+        # === HORIZONTAL MOVEMENT AND COLLISION ===
+        # Move horizontally first
+        self.pos.x += self.velocity.x
+        self.hitbox.centerx = int(self.pos.x)
 
-        # Horizontal collision
-        self.hitbox.x = int(self.pos.x - self.hitbox.width // 2)
+        # Check horizontal collisions
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
         for tile_rect in collision_rects:
             if self.hitbox.colliderect(tile_rect):
-                # Moving right
+                # Moving right - push out to the left
                 if self.velocity.x > 0:
                     self.hitbox.right = tile_rect.left
                     self.pos.x = self.hitbox.centerx
                     self.velocity.x = 0
-                # Moving left
+                # Moving left - push out to the right
                 elif self.velocity.x < 0:
                     self.hitbox.left = tile_rect.right
                     self.pos.x = self.hitbox.centerx
                     self.velocity.x = 0
 
-        # Vertical collision
-        self.hitbox.y = int(self.pos.y - self.hitbox.height // 2)
+        # === VERTICAL MOVEMENT AND COLLISION ===
+        # Move vertically after horizontal is resolved
+        self.pos.y += self.velocity.y
+        self.hitbox.centery = int(self.pos.y)
+
+        # Check vertical collisions
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
         for tile_rect in collision_rects:
             if self.hitbox.colliderect(tile_rect):
-                # Moving down (landing)
+                # Moving down (landing on ground)
                 if self.velocity.y > 0:
                     self.hitbox.bottom = tile_rect.top
                     self.pos.y = self.hitbox.centery

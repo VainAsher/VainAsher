@@ -233,43 +233,49 @@ class Player:
         if abs(self.velocity.x) > max_speed and not self.movement.is_dashing:
             self.velocity.x = max_speed if self.velocity.x > 0 else -max_speed
 
-        # Update position
-        self.pos += self.velocity
+        # NOTE: Position is now updated in check_collisions() to prevent clipping
 
     def check_collisions(self, tilemap):
-        """Check collisions with tilemap"""
+        """
+        Check collisions with tilemap using axis-separated collision detection.
+        This prevents clipping by moving and checking each axis independently.
+        """
         if not tilemap:
+            # No tilemap, just apply velocity
+            self.pos += self.velocity
             return
 
         # Skip collision if phasing (shadow dash)
         if self.movement.phasing:
+            self.pos += self.velocity
             self.on_ground = False
             self.on_wall = False
             return
 
         was_on_ground = self.on_ground
-        was_on_wall = self.on_wall
 
         # Reset states
         self.on_ground = False
         self.on_wall = False
         self.wall_direction = 0
 
-        # Get collision rects near player
-        collision_rects = tilemap.get_collision_rects(self.hitbox)
+        # === HORIZONTAL MOVEMENT AND COLLISION ===
+        # Move horizontally first
+        self.pos.x += self.velocity.x
+        self.hitbox.centerx = int(self.pos.x)
 
-        # Horizontal collision
-        self.hitbox.x = int(self.pos.x - self.hitbox.width // 2)
+        # Check horizontal collisions
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
         for tile_rect in collision_rects:
             if self.hitbox.colliderect(tile_rect):
-                # Moving right
+                # Moving right - push out to the left
                 if self.velocity.x > 0:
                     self.hitbox.right = tile_rect.left
                     self.pos.x = self.hitbox.centerx
                     self.velocity.x = 0
                     self.on_wall = True
                     self.wall_direction = 1
-                # Moving left
+                # Moving left - push out to the right
                 elif self.velocity.x < 0:
                     self.hitbox.left = tile_rect.right
                     self.pos.x = self.hitbox.centerx
@@ -277,17 +283,22 @@ class Player:
                     self.on_wall = True
                     self.wall_direction = -1
 
-        # Vertical collision
-        self.hitbox.y = int(self.pos.y - self.hitbox.height // 2)
+        # === VERTICAL MOVEMENT AND COLLISION ===
+        # Move vertically after horizontal is resolved
+        self.pos.y += self.velocity.y
+        self.hitbox.centery = int(self.pos.y)
+
+        # Check vertical collisions
+        collision_rects = tilemap.get_collision_rects(self.hitbox)
         for tile_rect in collision_rects:
             if self.hitbox.colliderect(tile_rect):
-                # Moving down (landing)
+                # Moving down (landing on ground)
                 if self.velocity.y > 0:
                     self.hitbox.bottom = tile_rect.top
                     self.pos.y = self.hitbox.centery
                     self.velocity.y = 0
                     self.on_ground = True
-                    self.on_wall = False  # On ground takes priority
+                    self.on_wall = False  # On ground takes priority over wall
                 # Moving up (hitting ceiling)
                 elif self.velocity.y < 0:
                     self.hitbox.top = tile_rect.bottom
