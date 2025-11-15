@@ -280,6 +280,7 @@ class Player:
                     self.velocity.x = 0
                     self.on_wall = True
                     self.wall_direction = 1
+                    self.movement.can_wall_jump = True
                 # Moving left - push out to the right
                 elif self.velocity.x < 0:
                     self.hitbox.left = tile.rect.right
@@ -287,6 +288,7 @@ class Player:
                     self.velocity.x = 0
                     self.on_wall = True
                     self.wall_direction = -1
+                    self.movement.can_wall_jump = True
 
         # === VERTICAL MOVEMENT AND COLLISION ===
         # Move vertically after horizontal is resolved
@@ -321,7 +323,7 @@ class Player:
         if not was_on_ground and self.on_ground:
             self.movement.on_landed()
             if self.movement.is_down_smashing:
-                self.create_ground_pound_effect()
+                self.create_ground_pound_effect(tilemap)
         elif was_on_ground and not self.on_ground:
             self.movement.on_left_ground()
 
@@ -353,10 +355,37 @@ class Player:
             self.state = "idle"
             self.animation.play("idle")
 
-    def create_ground_pound_effect(self):
-        """Create ground pound shockwave"""
-        # Placeholder for particle effect
-        pass
+    def create_ground_pound_effect(self, tilemap):
+        """Create ground pound shockwave and break tiles"""
+        from config.game_balance import GROUND_POUND_RADIUS
+
+        if not tilemap:
+            return
+
+        # Create shockwave area
+        smash_rect = pygame.Rect(
+            self.pos.x - GROUND_POUND_RADIUS,
+            self.pos.y - 32,
+            GROUND_POUND_RADIUS * 2,
+            64
+        )
+
+        # Get all tiles in smash area
+        tiles = tilemap.get_tiles_in_rect(smash_rect)
+        tiles_to_break = []
+
+        for tile in tiles:
+            if hasattr(tile, 'breakable') and tile.breakable:
+                tiles_to_break.append((tile.x, tile.y))
+
+        # Break the tiles
+        for x, y in tiles_to_break:
+            tilemap.remove_tile(x, y)
+            print(f"Smashed tile at ({x}, {y})")
+
+        # Visual/audio feedback
+        if tiles_to_break:
+            print(f"Ground pound! Destroyed {len(tiles_to_break)} tiles!")
 
     def unlock_ability(self, ability_name: str):
         """Unlock an ability"""

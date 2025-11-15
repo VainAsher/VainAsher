@@ -25,15 +25,17 @@ WALL_STICK_TIME = 0.1
 
 # Dash System
 DASH_SPEED = 15.0
-DASH_DURATION = 0.2
+DASH_DURATION = 0.4  # Increased from 0.2 to 0.4 for longer dash
 DASH_COOLDOWN = 0.5
 DASH_INVULNERABLE = True
+DASH_SPEED_MULTIPLIER = 2.5  # Configurable speed multiplier
 
 # Shadow Dash
 SHADOW_DASH_SPEED = 20.0
-SHADOW_DASH_DURATION = 0.25
+SHADOW_DASH_DURATION = 0.5  # Increased from 0.25 to 0.5 for longer phase duration
 SHADOW_DASH_COOLDOWN = 2.0
 SHADOW_DASH_PHASE = True
+SHADOW_DASH_SPEED_MULTIPLIER = 3.5  # Configurable speed multiplier (increased from 3.0)
 
 # Crouch
 CROUCH_HEIGHT_MULT = 0.5

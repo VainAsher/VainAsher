@@ -4,6 +4,7 @@ Handles player movement abilities and mechanics.
 """
 import pygame
 from config.game_balance import *
+import config.runtime_settings as runtime
 
 
 class MovementComponent:
@@ -102,7 +103,7 @@ class MovementComponent:
 
     def wall_jump(self):
         """Execute a wall jump"""
-        if not self.can_wall_jump or not self.entity.on_wall:
+        if not self.entity.on_wall:
             return
 
         # Jump away from wall
@@ -112,6 +113,7 @@ class MovementComponent:
 
         # Reset jumps
         self.jumps_remaining = self.max_jumps
+        self.can_wall_jump = False  # Reset until touching wall again
 
     def start_dash(self, direction: pygame.Vector2):
         """Start a dash - provides speed boost"""
@@ -119,7 +121,7 @@ class MovementComponent:
             return
 
         self.is_dashing = True
-        self.dash_timer = DASH_DURATION
+        self.dash_timer = runtime.get_dash_duration()
         self.dash_cooldown_timer = DASH_COOLDOWN
         self.dash_direction = direction.normalize() if direction.length() > 0 else pygame.Vector2(1, 0)
 
@@ -136,7 +138,7 @@ class MovementComponent:
             return
 
         self.is_shadow_dashing = True
-        self.shadow_dash_timer = SHADOW_DASH_DURATION
+        self.shadow_dash_timer = runtime.get_shadow_dash_duration()
         self.dash_cooldown_timer = SHADOW_DASH_COOLDOWN
         self.phasing = True
         self.dash_direction = direction.normalize() if direction.length() > 0 else pygame.Vector2(1, 0)
@@ -147,9 +149,9 @@ class MovementComponent:
     def get_dash_speed_multiplier(self) -> float:
         """Get current dash speed multiplier"""
         if self.is_shadow_dashing:
-            return 3.0  # Shadow dash is faster
+            return runtime.get_shadow_dash_speed_mult()  # Shadow dash is faster
         elif self.is_dashing:
-            return 2.5  # Regular dash
+            return runtime.get_dash_speed_mult()  # Regular dash
         return 1.0  # Normal speed
 
     def start_down_smash(self):

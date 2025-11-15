@@ -14,8 +14,9 @@ class Tile:
         self.tile_type = tile_type
         self.x = x
         self.y = y
-        self.solid = tile_type in ["platform", "wall", "shadow_wall"]
+        self.solid = tile_type in ["platform", "wall", "shadow_wall", "breakable_platform"]
         self.phaseable = tile_type == "shadow_wall"  # Can pass through when phasing
+        self.breakable = tile_type == "breakable_platform"  # Can be destroyed by down smash
         self.rect = pygame.Rect(x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE)
 
     def get_color(self):
@@ -30,6 +31,7 @@ class Tile:
             "ability_pickup": (255, 200, 100),  # Orange for abilities
             "consumable": (150, 200, 255),  # Light blue for consumables
             "shadow_wall": (60, 30, 80),  # Purple for shadow dash barriers
+            "breakable_platform": (120, 80, 50),  # Brown for breakable platforms
         }
         return colors.get(self.tile_type, (255, 0, 255))
 
@@ -245,9 +247,14 @@ def create_test_level() -> Tilemap:
     for x in range(114, 119):
         tilemap.set_tile(x, 10, "platform")
 
-    # Breakable blocks below (visual indicator)
+    # Breakable blocks below (can be destroyed with down smash)
     for x in range(115, 118):
-        tilemap.set_tile(x, 20, "platform")
+        tilemap.set_tile(x, 20, "breakable_platform")
+
+    # More breakable blocks scattered
+    tilemap.set_tile(120, 19, "breakable_platform")
+    tilemap.set_tile(121, 19, "breakable_platform")
+    tilemap.set_tile(122, 20, "breakable_platform")
 
     # Landing area
     for x in range(114, 125):
@@ -255,8 +262,8 @@ def create_test_level() -> Tilemap:
 
     # Ability pickup for down smash
     tilemap.set_tile(116, 9, "ability_pickup")
-    # Consumable
-    tilemap.set_tile(120, 20, "consumable")
+    # Consumable hidden under breakable block
+    tilemap.set_tile(116, 19, "consumable")
 
     # === SECTION 8: CROUCH TUNNEL (x: 126-138) ===
     # Low ceiling tunnel

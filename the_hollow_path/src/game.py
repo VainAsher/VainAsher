@@ -368,6 +368,114 @@ class Game:
             self.player.abilities = player_data.get("abilities", {})
             # Restore more state as needed
 
+    def render_interaction_indicators(self, camera_offset: tuple):
+        """Render visual indicators for interactive elements in range"""
+        from config.game_balance import GRAPPLE_RANGE, SWORD_RANGE
+
+        # Highlight grapple points in range
+        if self.player.abilities["grapple"]:
+            search_rect = pygame.Rect(
+                self.player.pos.x - GRAPPLE_RANGE,
+                self.player.pos.y - GRAPPLE_RANGE,
+                GRAPPLE_RANGE * 2,
+                GRAPPLE_RANGE * 2
+            )
+            tiles = self.tilemap.get_tiles_in_rect(search_rect)
+
+            for tile in tiles:
+                if tile.tile_type == "grapple_point":
+                    tile_center = pygame.Vector2(tile.rect.centerx, tile.rect.centery)
+                    dist = (tile_center - self.player.pos).length()
+
+                    if dist < GRAPPLE_RANGE:
+                        # Calculate screen position
+                        screen_x = int(tile.rect.centerx - camera_offset[0])
+                        screen_y = int(tile.rect.centery - camera_offset[1])
+
+                        # Pulse effect based on distance (closer = brighter)
+                        intensity = int(255 * (1 - dist / GRAPPLE_RANGE))
+                        color = (255, 255, intensity)
+
+                        # Draw targeting reticle
+                        size = 20
+                        pygame.draw.circle(self.screen, color, (screen_x, screen_y), size, 3)
+                        pygame.draw.circle(self.screen, color, (screen_x, screen_y), size // 2, 2)
+                        # Draw crosshair
+                        pygame.draw.line(self.screen, color, (screen_x - size, screen_y),
+                                       (screen_x + size, screen_y), 2)
+                        pygame.draw.line(self.screen, color, (screen_x, screen_y - size),
+                                       (screen_x, screen_y + size), 2)
+
+        # Highlight enemies in attack range
+        attack_range = SWORD_RANGE
+        for enemy in self.enemies:
+            dist = (enemy.pos - self.player.pos).length()
+
+            if dist < attack_range * 2:  # Show indicator when somewhat close
+                # Calculate screen position
+                screen_rect = enemy.hitbox.copy()
+                screen_rect.x -= camera_offset[0]
+                screen_rect.y -= camera_offset[1]
+
+                if dist < attack_range:
+                    # In attack range - bright red outline
+                    pygame.draw.rect(self.screen, (255, 50, 50), screen_rect, 3)
+                    # Draw attack indicator above enemy
+                    indicator_x = screen_rect.centerx
+                    indicator_y = screen_rect.top - 15
+                    pygame.draw.polygon(self.screen, (255, 50, 50), [
+                        (indicator_x, indicator_y),
+                        (indicator_x - 8, indicator_y + 10),
+                        (indicator_x + 8, indicator_y + 10)
+                    ])
+                else:
+                    # Nearby but not in range - yellow outline
+                    pygame.draw.rect(self.screen, (200, 200, 50), screen_rect, 2)
+
+        # Highlight smashable tiles (when using down smash)
+        if self.player.movement.is_down_smashing:
+            # Show area that will be affected
+            smash_radius = 80  # pixels around landing point
+            # Predict landing position
+            landing_x = int(self.player.pos.x)
+            landing_y = int(self.player.pos.y)
+
+            # Find ground below player
+            for y in range(int(self.player.pos.y), int(self.player.pos.y) + 400, 32):
+                check_rect = pygame.Rect(landing_x - 16, y, 32, 32)
+                tiles = self.tilemap.get_tiles_in_rect(check_rect)
+                for tile in tiles:
+                    if tile.solid:
+                        landing_y = tile.rect.top
+                        break
+                if landing_y != int(self.player.pos.y):
+                    break
+
+            # Draw smash area indicator
+            screen_x = landing_x - camera_offset[0]
+            screen_y = landing_y - camera_offset[1]
+            pygame.draw.circle(self.screen, (255, 100, 255), (screen_x, screen_y),
+                             smash_radius, 3)
+
+            # Highlight breakable tiles in area
+            smash_rect = pygame.Rect(landing_x - smash_radius, landing_y - 32,
+                                    smash_radius * 2, 64)
+            tiles = self.tilemap.get_tiles_in_rect(smash_rect)
+            for tile in tiles:
+                if hasattr(tile, 'breakable') and tile.breakable:
+                    # Breakable tiles get special highlight
+                    draw_rect = tile.rect.copy()
+                    draw_rect.x -= camera_offset[0]
+                    draw_rect.y -= camera_offset[1]
+                    pygame.draw.rect(self.screen, (255, 50, 50), draw_rect, 3)
+                    # Add X pattern to show it will break
+                    pygame.draw.line(self.screen, (255, 50, 50),
+                                   (draw_rect.left, draw_rect.top),
+                                   (draw_rect.right, draw_rect.bottom), 2)
+                    pygame.draw.line(self.screen, (255, 50, 50),
+                                   (draw_rect.right, draw_rect.top),
+                                   (draw_rect.left, draw_rect.bottom), 2)
+
     def render(self):
         """Render everything"""
         # Clear screen
@@ -392,6 +500,9 @@ class Game:
         # Render companion
         if self.companion:
             self.companion.render(self.screen, camera_offset)
+
+        # Render interaction indicators (before player so they're under)
+        self.render_interaction_indicators(camera_offset)
 
         # Render player
         self.player.render(self.screen, camera_offset)
